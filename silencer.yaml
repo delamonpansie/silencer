@@ -9,6 +9,6 @@ log_file:
       - name: auth
         re:
           - ^$date_time \[\d+\] SMTP protocol error in "AUTH LOGIN" (.*)
-          - (.*) AUTH command used when not advertised$
+          - (.*) AUTH command used when not advertised$$
           - ^(?:H=(?:[\w.-]+ )?(?:\(\S+\) )?)?(.*)
           - \[($ip)\]

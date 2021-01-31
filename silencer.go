@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/buildkite/interpolate"
 	"github.com/hpcloud/tail"
 
 	"github.com/delamonpansie/silencer/config"
@@ -58,10 +57,9 @@ type rule struct {
 	duration time.Duration
 }
 
-func newRule(name string, src []string, duration time.Duration, env interpolate.Env) rule {
+func newRule(name string, src []string, duration time.Duration) rule {
 	re := make([]*regexp.Regexp, len(src))
 	for i, s := range src {
-		s, _ = interpolate.Interpolate(env, s)
 		re[i] = regexp.MustCompile(s)
 	}
 	return rule{name, re, duration}
@@ -154,7 +152,6 @@ var dryRun = flag.Bool("dry-run", false, "do not apply any changes")
 func main() {
 	flag.Parse()
 	cfg := config.Load()
-	env := interpolate.NewMapEnv(cfg.Env)
 
 	var blocker filter.Blocker
 	switch {
@@ -167,7 +164,7 @@ func main() {
 	for _, logFile := range cfg.LogFile {
 		rules := make([]rule, len(logFile.Rule))
 		for i, ruleConfig := range logFile.Rule {
-			rules[i] = newRule(ruleConfig.Name, ruleConfig.Re, ruleConfig.Duration, env)
+			rules[i] = newRule(ruleConfig.Name, ruleConfig.Re, ruleConfig.Duration)
 		}
 
 		go run(logFile.FileName, rules, block)

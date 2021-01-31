@@ -39,14 +39,20 @@ func Test_banWorker(t *testing.T) {
 	time.Sleep(5 * time.Second)
 }
 
-func testRule(re ...string) rule {
+func testRule(t *testing.T, re ...string) rule {
 	cfg := config.Load()
 	env := interpolate.NewMapEnv(cfg.Env)
-	return newRule("testRule", re, time.Second, env)
+	// expand regex like "config.Load()" does
+	for i := range re {
+		s, err := interpolate.Interpolate(env, re[i])
+		require.NoError(t, err)
+		re[i] = s
+	}
+	return newRule("testRule", re, time.Second)
 }
 
 func Test_rule1(t *testing.T) {
-	rule := testRule(
+	rule := testRule(t,
 		`^$date_time \[\d+\] SMTP protocol error in "AUTH LOGIN" (.*)`,
 		`(.*) AUTH command used when not advertised$`,
 		`^H=\(\S+\) \[($ip)\]`,
@@ -60,21 +66,21 @@ func Test_rule1(t *testing.T) {
 }
 
 func Test_rule2(t *testing.T) {
-	rule := testRule("aaa", `($ip)`)
+	rule := testRule(t, "aaa", `($ip)`)
 	m, err := rule.match("aaa bbb 1.1.1.1")
 	require.NoError(t, err)
 	assert.Equal(t, ptr.String("1.1.1.1"), m)
 }
 
 func Test_rule22(t *testing.T) {
-	rule := testRule("aaa (.*)", " (.*)", `$ip`)
+	rule := testRule(t, "aaa (.*)", " (.*)", `$ip`)
 	m, err := rule.match("aaa bbb 1.1.1.1")
 	require.NoError(t, err)
 	assert.Equal(t, ptr.String("1.1.1.1"), m)
 }
 
 func Test_rule3(t *testing.T) {
-	rule := testRule("zzz", `($ip)`)
+	rule := testRule(t, "zzz", `($ip)`)
 	m, err := rule.match("aaa bbb 1.1.1.1")
 	require.NoError(t, err)
 	assert.Nil(t, m)
