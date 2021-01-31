@@ -12,3 +12,9 @@ log_file:
           - (.*) AUTH command used when not advertised$$
           - ^(?:H=(?:[\w.-]+ )?(?:\(\S+\) )?)?(.*)
           - \[($ip)\]
+  - file_name: /var/log/auth.log
+    rule:
+      - name: sshd
+        re:
+          - ^\w{3} \d{1,2} \d{2}:\d{2}:\d{2} \S+ sshd\[\d+\][:]\s(.*)
+          - ^Failed password for (?:invalid user )?\S+ from ($ip) port \d+ ssh2$$
