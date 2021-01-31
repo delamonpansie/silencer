@@ -1,0 +1,29 @@
+{
+  "Duration": 604800000000000,
+  "LogFile": [
+    {
+      "FileName": "/var/log/exim4/mainlog",
+      "Rule": [
+        {
+          "Name": "auth",
+          "Re": [
+            "^ \\[\\d+\\] SMTP protocol error in \"AUTH LOGIN\" (.*)",
+            "(.*) AUTH command used when not advertised$",
+            "^(?:H=(?:[\\w.-]+ )?(?:\\(\\S+\\) )?)?(.*)",
+            "\\[()\\]"
+          ],
+          "Duration": 604800000000000
+        }
+      ],
+      "Duration": 604800000000000
+    }
+  ],
+  "Env": {
+    "date_time": "\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}.\\d+",
+    "date_time1": "\\d{4}-(?:0\\d|10|11|12)-(?:[012]\\d|3[01]) \\d{2}:\\d{2}:\\d{2}.\\d+",
+    "ip": "(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)"
+  },
+  "IPTables": {
+    "Chain": "silencer"
+  }
+}
