@@ -36,6 +36,9 @@ these strings.
 ## Building & testing
 
 ```
+git clone https://github.com/delamonpansie/silencer
+cd silencer
+go get github.com/golang/mock/mockgen
 go generate ./...
 go test ./...
 go build .
