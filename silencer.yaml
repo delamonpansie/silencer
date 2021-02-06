@@ -16,5 +16,9 @@ log_file:
     rule:
       - name: sshd
         re:
-          - ^\w{3} \d{1,2} \d{2}:\d{2}:\d{2} \S+ sshd\[\d+\][:]\s(.*)
+          - ^\w{3} +\d{1,2} \d{2}:\d{2}:\d{2} \S+ sshd\[\d+\][:]\s(.*)
           - ^Failed password for (?:invalid user )?\S+ from ($ip) port \d+ ssh2$$
+      - name: sshd-pam
+        re:
+          - ^\w{3} +\d{1,2} \d{2}:\d{2}:\d{2} \S+ sshd\[\d+\][:]\s(.*)
+          - ^pam_unix\(sshd:auth\)[:] authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=($ip)(?:\s+user=\S*)?$$
