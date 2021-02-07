@@ -3,18 +3,19 @@ package set
 import (
 	"container/heap"
 	"log"
+	"net"
 	"time"
 )
 
 type item struct {
-	ip       string
+	ip       [4]byte
 	deadline time.Time
 }
 
 // pset implements priority set
 type pset struct {
 	heap []item
-	set  map[string]int
+	set  map[[4]byte]int
 }
 
 var _ heap.Interface = &pset{}
@@ -58,11 +59,18 @@ type Set struct {
 }
 
 func NewSet() Set {
-	return Set{pset{set: make(map[string]int)}}
+	return Set{pset{set: make(map[[4]byte]int)}}
 }
 
 // Insert will insert element into set or update duration if element already exists
-func (s *Set) Insert(ip string, duration time.Duration) bool {
+func (s *Set) Insert(netIP net.IP, duration time.Duration) bool {
+	netIPv4 := netIP.To4()
+	if len(netIPv4) != 4 {
+		log.Fatalf("invalid IPv4: %q", netIP)
+	}
+	var ip [4]byte
+	copy(ip[:], netIPv4)
+
 	b := &s.inner
 	deadline := time.Now().Add(duration)
 	if i, exists := b.set[ip]; exists {
@@ -84,11 +92,12 @@ func (s *Set) Insert(ip string, duration time.Duration) bool {
 
 // Expire must be called periodically to purge old entries
 // returns expired entries
-func (s *Set) Expire() (expired []string) {
+func (s *Set) Expire() (expired []net.IP) {
 	b := &s.inner
 	now := time.Now()
 	for len(b.heap) > 0 && b.heap[0].deadline.Before(now) {
-		expired = append(expired, heap.Pop(b).(item).ip)
+		ipv4 := heap.Pop(b).(item).ip
+		expired = append(expired, ipv4[:])
 	}
 	return
 }

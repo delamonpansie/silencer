@@ -16,7 +16,7 @@ import (
 )
 
 type blockRequest struct {
-	ip       string
+	ip       net.IP
 	duration time.Duration
 }
 
@@ -67,13 +67,13 @@ func newRule(name string, src []string, duration time.Duration) rule {
 
 var debugRule = flag.Bool("debug-rule", false, "enable rule matching logs")
 
-func (rule *rule) match(line string) (ipStr *string, err error) {
+func (rule *rule) match(line string) (ip net.IP, err error) {
 	if *debugRule {
 		fmt.Printf("mathing rule %q\n", rule.name)
 		defer func() {
 			switch {
-			case ipStr != nil:
-				fmt.Printf(" success %q\n", *ipStr)
+			case ip != nil:
+				fmt.Printf(" success %q\n", ip.String())
 			case err != nil:
 				fmt.Printf(" failure %s\n", err.Error())
 			default:
@@ -102,13 +102,11 @@ func (rule *rule) match(line string) (ipStr *string, err error) {
 				rule.name, m, line)
 		}
 	}
-	ip := net.ParseIP(src).To4()
+	ip = net.ParseIP(src).To4()
 	if ip == nil {
 		return nil, fmt.Errorf("rule %s, invalid ip %q", rule.name, src)
 	}
-
-	tmp := ip.String()
-	return &tmp, nil
+	return
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -136,7 +134,7 @@ func run(filename string, rules []rule, block chan<- blockRequest) {
 		for _, rule := range rules {
 			ip, err := rule.match(line.Text)
 			if ip != nil {
-				block <- blockRequest{*ip, rule.duration}
+				block <- blockRequest{ip, rule.duration}
 			}
 			if err != nil {
 				log.Println(err.Error())

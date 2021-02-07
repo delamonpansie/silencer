@@ -41,6 +41,10 @@ RETURN     all  --  0.0.0.0/0            0.0.0.0/0
 		"141.98.10.143",
 	}
 
-	output := parseIptablesList(input)
+	list := parseIptablesList(input)
+	output := make([]string, len(list))
+	for i, l := range list {
+		output[i] = l.String()
+	}
 	assert.Equal(t, expected, output)
 }
