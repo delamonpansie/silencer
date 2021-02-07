@@ -20,16 +20,11 @@ type blockRequest struct {
 	duration time.Duration
 }
 
-func worker(blocker filter.Blocker, defaultDuration time.Duration) chan<- blockRequest {
+func worker(blocker filter.Blocker) chan<- blockRequest {
 	c := make(chan blockRequest, 16)
 	go func() {
 		timer := time.NewTimer(0)
-
 		active := set.NewSet()
-		for _, ip := range blocker.List() {
-			active.Insert(ip, defaultDuration)
-		}
-
 		for {
 			select {
 			case b := <-c:
@@ -168,7 +163,12 @@ func main() {
 	default:
 		blocker = filter.NewIPtables(cfg.IPTables.Chain)
 	}
-	block := worker(blocker, cfg.Duration/2)
+	block := worker(blocker)
+
+	for _, ip := range blocker.List() {
+		block <- blockRequest{ip: ip, duration: cfg.Duration / 2}
+	}
+
 	for _, logFile := range cfg.LogFile {
 		rules := make([]rule, len(logFile.Rule))
 		for i, ruleConfig := range logFile.Rule {

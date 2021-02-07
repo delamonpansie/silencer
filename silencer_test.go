@@ -24,8 +24,6 @@ func Test_banWorker(t *testing.T) {
 
 	blocker := filter.NewMockBlocker(ctrl)
 
-	blocker.EXPECT().List().Return(nil)
-
 	blocker.EXPECT().Block(ip1)
 	blocker.EXPECT().Block(ip2)
 	blocker.EXPECT().Block(ip3)
@@ -48,7 +46,7 @@ func Test_banWorker(t *testing.T) {
 	})
 
 	start = time.Now()
-	c := worker(blocker, time.Second)
+	c := worker(blocker)
 	c <- blockRequest{ip1, time.Millisecond}
 	c <- blockRequest{ip1, time.Millisecond}
 	c <- blockRequest{ip2, 3 * time.Millisecond}
