@@ -4,6 +4,7 @@ import (
 	"flag"
 	"io/ioutil"
 	"log"
+	"net"
 	"os"
 	"time"
 
@@ -29,10 +30,11 @@ type IPTables struct {
 }
 
 type Config struct {
-	Duration time.Duration     `yaml:"duration" default:"168h" `
-	LogFile  []LogFile         `yaml:"log_file"`
-	Env      map[string]string `yaml:"env"`
-	IPTables IPTables          `yaml:"iptables"`
+	Duration  time.Duration     `yaml:"duration" default:"168h" `
+	LogFile   []LogFile         `yaml:"log_file"`
+	Env       map[string]string `yaml:"env"`
+	IPTables  IPTables          `yaml:"iptables"`
+	Whitelist []net.IPNet       `yaml:"whitelist"`
 }
 
 var configName = flag.String("config", "silencer.yaml", "path to configuration file")
@@ -71,9 +73,14 @@ func Load() Config {
 		panic(err)
 	}
 	if config.Duration == 0 {
-		panic("default duration is 0")
+		log.Fatal("default duration is 0")
 	}
 
+	for _, subnet := range config.Whitelist {
+		if len(subnet.Mask) != 4 {
+			log.Fatal("net mask length not equal 4")
+		}
+	}
 	for i := range config.LogFile {
 		if config.LogFile[i].Duration == 0 {
 			config.LogFile[i].Duration = config.Duration

@@ -20,14 +20,21 @@ type blockRequest struct {
 	duration time.Duration
 }
 
-func worker(blocker filter.Blocker) chan<- blockRequest {
+func worker(blocker filter.Blocker, whitelist []net.IPNet) chan<- blockRequest {
 	c := make(chan blockRequest, 16)
 	go func() {
 		timer := time.NewTimer(0)
 		active := set.NewSet()
 		for {
+		next:
 			select {
 			case b := <-c:
+				for _, subnet := range whitelist {
+					if subnet.Contains(b.ip) {
+						goto next
+					}
+				}
+
 				unseen := active.Insert(b.ip, b.duration)
 				if unseen {
 					log.Printf("blocking %s for %v", b.ip, b.duration)
@@ -163,7 +170,7 @@ func main() {
 	default:
 		blocker = filter.NewIPtables(cfg.IPTables.Chain)
 	}
-	block := worker(blocker)
+	block := worker(blocker, cfg.Whitelist)
 
 	for _, ip := range blocker.List() {
 		block <- blockRequest{ip: ip, duration: cfg.Duration / 2}

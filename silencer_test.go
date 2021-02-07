@@ -14,7 +14,7 @@ import (
 	"github.com/delamonpansie/silencer/filter"
 )
 
-func Test_banWorker(t *testing.T) {
+func Test_banWorker_bans_in_time(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -46,13 +46,34 @@ func Test_banWorker(t *testing.T) {
 	})
 
 	start = time.Now()
-	c := worker(blocker)
+	c := worker(blocker, nil)
 	c <- blockRequest{ip1, time.Millisecond}
 	c <- blockRequest{ip1, time.Millisecond}
 	c <- blockRequest{ip2, 3 * time.Millisecond}
 	c <- blockRequest{ip3, time.Millisecond}
 
 	time.Sleep(time.Millisecond * 10)
+}
+
+func Test_banWorker_whitelist_honored(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ip1 := net.ParseIP("1.1.1.1").To4()
+	ip2, subnet, err := net.ParseCIDR("192.168.0.1/24")
+	require.NoError(t, err)
+	ip2 = ip2.To4()
+
+	blocker := filter.NewMockBlocker(ctrl)
+
+	blocker.EXPECT().Block(ip1)
+	blocker.EXPECT().Unblock(ip1)
+
+	c := worker(blocker, []net.IPNet{*subnet})
+	c <- blockRequest{ip1, time.Millisecond}
+	c <- blockRequest{ip2, time.Millisecond}
+
+	time.Sleep(2 * time.Millisecond)
 }
 
 func testRule(t *testing.T, re ...string) rule {
