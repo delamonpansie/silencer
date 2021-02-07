@@ -1,51 +1,34 @@
-{
-  "Duration": 604800000000000,
-  "LogFile": [
-    {
-      "FileName": "/var/log/exim4/mainlog",
-      "Rule": [
-        {
-          "Name": "auth",
-          "Re": [
-            "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}.\\d+ \\[\\d+\\] SMTP protocol error in \"AUTH LOGIN\" (.*)",
-            "(.*) AUTH command used when not advertised$",
-            "^(?:H=(?:[\\w.-]+ )?(?:\\(\\S+\\) )?)?(.*)",
-            "\\[((?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))\\]"
-          ],
-          "Duration": 604800000000000
-        }
-      ],
-      "Duration": 604800000000000
-    },
-    {
-      "FileName": "/var/log/auth.log",
-      "Rule": [
-        {
-          "Name": "sshd",
-          "Re": [
-            "^\\w{3} +\\d{1,2} \\d{2}:\\d{2}:\\d{2} \\S+ sshd\\[\\d+\\][:]\\s(.*)",
-            "^Failed password for (?:invalid user )?\\S+ from ((?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)) port \\d+ ssh2$"
-          ],
-          "Duration": 604800000000000
-        },
-        {
-          "Name": "sshd-pam",
-          "Re": [
-            "^\\w{3} +\\d{1,2} \\d{2}:\\d{2}:\\d{2} \\S+ sshd\\[\\d+\\][:]\\s(.*)",
-            "^pam_unix\\(sshd:auth\\)[:] authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=((?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))(?:\\s+user=\\S*)?$"
-          ],
-          "Duration": 604800000000000
-        }
-      ],
-      "Duration": 604800000000000
-    }
-  ],
-  "Env": {
-    "date_time": "\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}.\\d+",
-    "date_time1": "\\d{4}-(?:0\\d|10|11|12)-(?:[012]\\d|3[01]) \\d{2}:\\d{2}:\\d{2}.\\d+",
-    "ip": "(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)"
-  },
-  "IPTables": {
-    "Chain": "silencer"
-  }
-}
+duration: 168h0m0s
+log_file:
+- file_name: /var/log/exim4/mainlog
+  rule:
+  - name: auth
+    re:
+    - ^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}.\d+ \[\d+\] SMTP protocol error in "AUTH
+      LOGIN" (.*)
+    - (.*) AUTH command used when not advertised$
+    - ^(?:H=(?:[\w.-]+ )?(?:\(\S+\) )?)?(.*)
+    - \[((?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))\]
+    duration: 168h0m0s
+  duration: 168h0m0s
+- file_name: /var/log/auth.log
+  rule:
+  - name: sshd
+    re:
+    - ^\w{3} +\d{1,2} \d{2}:\d{2}:\d{2} \S+ sshd\[\d+\][:]\s(.*)
+    - ^Failed password for (?:invalid user )?\S+ from ((?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))
+      port \d+ ssh2$
+    duration: 168h0m0s
+  - name: sshd-pam
+    re:
+    - ^\w{3} +\d{1,2} \d{2}:\d{2}:\d{2} \S+ sshd\[\d+\][:]\s(.*)
+    - ^pam_unix\(sshd:auth\)[:] authentication failure; logname= uid=0 euid=0 tty=ssh
+      ruser= rhost=((?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))(?:\s+user=\S*)?$
+    duration: 168h0m0s
+  duration: 168h0m0s
+env:
+  date_time: \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}.\d+
+  date_time1: \d{4}-(?:0\d|10|11|12)-(?:[012]\d|3[01]) \d{2}:\d{2}:\d{2}.\d+
+  ip: (?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)
+iptables:
+  chain: silencer

@@ -28,9 +28,9 @@ func worker(blocker filter.Blocker) chan<- blockRequest {
 		for {
 			select {
 			case b := <-c:
-				log.Printf("blocking %s for %v", b.ip, b.duration)
 				unseen := active.Insert(b.ip, b.duration)
 				if unseen {
+					log.Printf("blocking %s for %v", b.ip, b.duration)
 					blocker.Block(b.ip)
 				}
 			case <-timer.C:

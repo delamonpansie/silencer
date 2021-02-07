@@ -1,11 +1,11 @@
 package config
 
 import (
-	"encoding/json"
 	"flag"
 	"os"
 	"testing"
 
+	"github.com/go-yaml/yaml"
 	"github.com/stretchr/testify/require"
 	"github.com/xorcare/golden"
 )
@@ -17,7 +17,7 @@ func TestMain(m *testing.M) {
 
 func Test_Load(t *testing.T) {
 	c := Load()
-	buf, err := json.MarshalIndent(c, "", "  ")
+	buf, err := yaml.Marshal(c)
 	require.NoError(t, err)
 	golden.Assert(t, buf)
 }

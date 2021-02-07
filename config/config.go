@@ -67,11 +67,11 @@ func Load() Config {
 
 	config = Config{}
 	defaults.Set(&config)
-	if err := yaml.Unmarshal(data, &config); err != nil {
+	if err := yaml.UnmarshalStrict(data, &config); err != nil {
 		panic(err)
 	}
 	if config.Duration == 0 {
-		panic("root duration is 0")
+		panic("default duration is 0")
 	}
 
 	for i := range config.LogFile {
