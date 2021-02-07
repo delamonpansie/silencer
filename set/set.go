@@ -101,3 +101,12 @@ func (s *Set) Expire() (expired []net.IP) {
 	}
 	return
 }
+
+// Deadline retunrn first deadline
+func (s *Set) Deadline() time.Time {
+	b := &s.inner
+	if len(b.heap) > 0 {
+		return b.heap[0].deadline
+	}
+	return time.Time{}
+}

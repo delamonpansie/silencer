@@ -127,3 +127,12 @@ func Test_Set_Expire(t *testing.T) {
 	time.Sleep(time.Millisecond * 100)
 
 }
+
+func Test_Set_Deadline(t *testing.T) {
+	s := NewSet()
+
+	assert.Equal(t, time.Time{}, s.Deadline())
+
+	s.Insert(a, time.Second)
+	assert.Less(t, time.Now().Sub(s.Deadline()), time.Millisecond)
+}

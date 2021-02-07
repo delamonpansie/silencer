@@ -30,17 +30,31 @@ func Test_banWorker(t *testing.T) {
 	blocker.EXPECT().Block(ip2)
 	blocker.EXPECT().Block(ip3)
 
-	blocker.EXPECT().Unblock(ip1)
-	blocker.EXPECT().Unblock(ip3)
-	blocker.EXPECT().Unblock(ip2)
+	var start time.Time
+	blocker.EXPECT().Unblock(ip1).Do(func(_ interface{}) {
+		delay := time.Now().Sub(start)
+		assert.Less(t, time.Millisecond, delay)
+		assert.Less(t, delay, 2*time.Millisecond)
+	})
+	blocker.EXPECT().Unblock(ip3).Do(func(_ interface{}) {
+		delay := time.Now().Sub(start)
+		assert.Less(t, time.Millisecond, delay)
+		assert.Less(t, delay, 2*time.Millisecond)
+	})
+	blocker.EXPECT().Unblock(ip2).Do(func(_ interface{}) {
+		delay := time.Now().Sub(start)
+		assert.Less(t, 3*time.Millisecond, delay)
+		assert.Less(t, delay, 4*time.Millisecond)
+	})
 
+	start = time.Now()
 	c := worker(blocker, time.Second)
-	c <- blockRequest{ip1, time.Second}
-	c <- blockRequest{ip1, time.Second}
-	c <- blockRequest{ip2, 3 * time.Second}
-	c <- blockRequest{ip3, time.Second}
+	c <- blockRequest{ip1, time.Millisecond}
+	c <- blockRequest{ip1, time.Millisecond}
+	c <- blockRequest{ip2, 3 * time.Millisecond}
+	c <- blockRequest{ip3, time.Millisecond}
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(time.Millisecond * 10)
 }
 
 func testRule(t *testing.T, re ...string) rule {

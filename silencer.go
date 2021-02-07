@@ -23,9 +23,9 @@ type blockRequest struct {
 func worker(blocker filter.Blocker, defaultDuration time.Duration) chan<- blockRequest {
 	c := make(chan blockRequest, 16)
 	go func() {
-		ticker := time.NewTicker(time.Second)
-		active := set.NewSet()
+		timer := time.NewTimer(0)
 
+		active := set.NewSet()
 		for _, ip := range blocker.List() {
 			active.Insert(ip, defaultDuration)
 		}
@@ -38,11 +38,21 @@ func worker(blocker filter.Blocker, defaultDuration time.Duration) chan<- blockR
 				if unseen {
 					blocker.Block(b.ip)
 				}
-			case <-ticker.C:
+			case <-timer.C:
 				for _, ip := range active.Expire() {
 					log.Printf("unblock %s", ip)
 					blocker.Unblock(ip)
 				}
+			}
+
+			if !timer.Stop() {
+				select {
+				case <-timer.C:
+				default:
+				}
+			}
+			if deadline := active.Deadline(); !deadline.IsZero() {
+				timer.Reset(deadline.Sub(time.Now()))
 			}
 		}
 	}()
