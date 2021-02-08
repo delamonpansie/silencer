@@ -167,8 +167,12 @@ func main() {
 	switch {
 	case *dryRun:
 		blocker = filter.NewDummy()
+	case cfg.Filter.IPTables != nil:
+		blocker = filter.NewIPtables(cfg.Filter.IPTables.Chain)
+	case cfg.Filter.IPSet != nil:
+		blocker = filter.NewIPset(cfg.Filter.IPSet.Set)
 	default:
-		blocker = filter.NewIPtables(cfg.IPTables.Chain)
+		panic("not reached")
 	}
 	block := worker(blocker, cfg.Whitelist)
 

@@ -26,14 +26,22 @@ type LogFile struct {
 }
 
 type IPTables struct {
-	Chain string `default:"silencer" yaml:"chain"`
+	Chain string `yaml:"chain"`
+}
+
+type IPSet struct {
+	Set string `yaml:"set"`
+}
+type Filter struct {
+	IPTables *IPTables `yaml:"iptables,omitempty"`
+	IPSet    *IPSet    `yaml:"ipset,omitempty"`
 }
 
 type Config struct {
 	Duration  time.Duration     `yaml:"duration" default:"168h" `
 	LogFile   []LogFile         `yaml:"log_file"`
 	Env       map[string]string `yaml:"env"`
-	IPTables  IPTables          `yaml:"iptables"`
+	Filter    Filter            `yaml:"filter"`
 	Whitelist []net.IPNet       `yaml:"whitelist"`
 }
 
@@ -81,6 +89,12 @@ func Load() Config {
 			log.Fatal("net mask length not equal 4")
 		}
 	}
+
+	if (config.Filter.IPSet != nil && config.Filter.IPTables != nil) ||
+		(config.Filter.IPSet == nil && config.Filter.IPTables == nil) {
+		log.Fatal("exactly one filter must be configured")
+	}
+
 	for i := range config.LogFile {
 		if config.LogFile[i].Duration == 0 {
 			config.LogFile[i].Duration = config.Duration
