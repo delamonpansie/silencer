@@ -62,14 +62,18 @@ func NewSet() Set {
 	return Set{pset{set: make(map[[4]byte]int)}}
 }
 
+func ip4(ip net.IP) (addr [4]byte) {
+	ip4 := ip.To4()
+	if len(ip4) != 4 {
+		log.Fatalf("invalid IPv4: %q", ip)
+	}
+	copy(addr[:], ip4)
+	return
+}
+
 // Insert will insert element into set or update duration if element already exists
 func (s *Set) Insert(netIP net.IP, duration time.Duration) bool {
-	netIPv4 := netIP.To4()
-	if len(netIPv4) != 4 {
-		log.Fatalf("invalid IPv4: %q", netIP)
-	}
-	var ip [4]byte
-	copy(ip[:], netIPv4)
+	ip := ip4(netIP)
 
 	b := &s.inner
 	deadline := time.Now().Add(duration)
