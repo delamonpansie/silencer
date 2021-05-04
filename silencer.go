@@ -77,10 +77,10 @@ func newRule(name string, src []string, duration time.Duration) rule {
 	return rule{name, re, duration}
 }
 
-var debugRule = flag.Bool("debug-rule", false, "enable rule matching logs")
+var debugRule = flag.String("debug-rule", "", "enable rule matching logs")
 
 func (rule *rule) match(line string) (ip net.IP, err error) {
-	if *debugRule {
+	if *debugRule != "" {
 		fmt.Printf("mathing rule %q\n", rule.name)
 		defer func() {
 			switch {
@@ -97,7 +97,7 @@ func (rule *rule) match(line string) (ip net.IP, err error) {
 	src := line
 	for i, re := range rule.re {
 		m := re.FindStringSubmatch(src)
-		if *debugRule {
+		if *debugRule != "" {
 			fmt.Printf(" [%d] %q\n", i, src)
 			fmt.Printf("  re %s\n", re)
 			fmt.Printf("  => %q\n", m)
@@ -157,15 +157,33 @@ func run(filename string, rules []rule, block chan<- blockRequest) {
 
 /////////////////////////////////////////////////////////////////////////////////
 
-var dryRun = flag.Bool("dry-run", false, "do not apply any changes")
-
 func main() {
 	flag.Parse()
 	cfg := config.Load()
 
+	if *debugRule != "" {
+		var matchedLogFile []config.LogFile
+		for _, logFile := range cfg.LogFile {
+			var matchedRule []config.Rule
+			for _, rule := range logFile.Rule {
+				if rule.Name == *debugRule {
+					matchedRule = append(matchedRule, rule)
+				}
+			}
+			if len(matchedRule) > 0 {
+				logFile.Rule = matchedRule
+				matchedLogFile = append(matchedLogFile, logFile)
+			}
+		}
+		if len(matchedLogFile) == 0 {
+			log.Fatal("no matching rules found")
+		}
+		cfg.LogFile = matchedLogFile
+	}
+
 	var blocker filter.Blocker
 	switch {
-	case *dryRun:
+	case *debugRule != "":
 		blocker = filter.NewDummy()
 	case cfg.Filter.IPTables != nil:
 		blocker = filter.NewIPtables(cfg.Filter.IPTables.Chain)
