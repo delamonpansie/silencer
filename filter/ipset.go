@@ -51,7 +51,7 @@ func parseIpsetList(buf []byte) (list []net.IP) {
 }
 
 func (b ipset) List() []net.IP {
-	cmd := exec.Command("ipset", "list", b.set, "-format", "save")
+	cmd := exec.Command("ipset", "list", b.set, "-output", "save")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Printf("command %q failed with %q", cmd, string(output))
