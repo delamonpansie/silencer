@@ -12,6 +12,11 @@ type ipset struct {
 }
 
 func NewIPset(set string) *ipset {
+	cmd := exec.Command("ipset", "create", set, "hash:ip")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Printf("command %q failed with %q", cmd, string(output))
+	}
 	return &ipset{set}
 }
 
