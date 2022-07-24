@@ -2,20 +2,27 @@ package set
 
 import (
 	"container/heap"
+	"fmt"
 	"log"
 	"net"
 	"time"
 )
 
+type ip [4]byte
+
+func (ip ip) String() string {
+	return fmt.Sprintf("%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3])
+}
+
 type item struct {
-	ip       [4]byte
+	ip       ip
 	deadline time.Time
 }
 
 // pset implements priority set
 type pset struct {
 	heap []item
-	set  map[[4]byte]int
+	set  map[ip]int
 }
 
 var _ heap.Interface = &pset{}
@@ -31,6 +38,7 @@ func (b pset) Len() int {
 func (b pset) Less(i, j int) bool {
 	return b.heap[i].deadline.Before(b.heap[j].deadline)
 }
+
 func (b pset) Swap(i, j int) {
 	bi, bj := b.heap[i], b.heap[j]
 	b.heap[i], b.heap[j] = bj, bi
@@ -59,10 +67,10 @@ type Set struct {
 }
 
 func NewSet() Set {
-	return Set{pset{set: make(map[[4]byte]int)}}
+	return Set{pset{set: make(map[ip]int)}}
 }
 
-func ip4(ip net.IP) (addr [4]byte) {
+func ip4(ip net.IP) (addr ip) {
 	ip4 := ip.To4()
 	if len(ip4) != 4 {
 		log.Fatalf("invalid IPv4: %q", ip)
@@ -100,8 +108,8 @@ func (s *Set) Expire() (expired []net.IP) {
 	b := &s.inner
 	now := time.Now()
 	for len(b.heap) > 0 && b.heap[0].deadline.Before(now) {
-		ipv4 := heap.Pop(b).(item).ip
-		expired = append(expired, ipv4[:])
+		ip := heap.Pop(b).(item).ip
+		expired = append(expired, ip[:])
 	}
 	return
 }

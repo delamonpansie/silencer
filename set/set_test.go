@@ -19,7 +19,7 @@ var (
 )
 
 func Test_pset_Push_pushes_to_tail(t *testing.T) {
-	h := pset{set: make(map[[4]byte]int)}
+	h := pset{set: make(map[ip]int)}
 	h.Push(item{ip: ip4(a)})
 	assert.Equal(t, ip4(a), h.heap[0].ip)
 	assert.Equal(t, 0, h.set[ip4(a)])
@@ -31,14 +31,14 @@ func Test_pset_Push_pushes_to_tail(t *testing.T) {
 }
 
 func Test_pset_Len(t *testing.T) {
-	h := pset{set: make(map[[4]byte]int)}
+	h := pset{set: make(map[ip]int)}
 	assert.Equal(t, 0, h.Len())
 	h.Push(item{})
 	assert.Equal(t, 1, h.Len())
 }
 
 func Test_pset_Swap_swaps_elements(t *testing.T) {
-	h := pset{set: make(map[[4]byte]int)}
+	h := pset{set: make(map[ip]int)}
 	h.Push(item{ip: ip4(a)})
 	h.Push(item{ip: ip4(b)})
 
@@ -57,7 +57,7 @@ func Test_pset_Swap_swaps_elements(t *testing.T) {
 }
 
 func Test_pset_Pop_pops_last_element(t *testing.T) {
-	h := pset{set: make(map[[4]byte]int)}
+	h := pset{set: make(map[ip]int)}
 	h.Push(item{ip: ip4(a)})
 	h.Push(item{ip: ip4(b)})
 	el := h.Pop().(item)
