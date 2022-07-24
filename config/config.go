@@ -1,11 +1,14 @@
 package config
 
 import (
+	"errors"
 	"flag"
+	"io/fs"
 	"io/ioutil"
 	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/buildkite/interpolate"
@@ -32,6 +35,7 @@ type IPTables struct {
 type IPSet struct {
 	Set string `yaml:"set"`
 }
+
 type Filter struct {
 	IPTables *IPTables `yaml:"iptables,omitempty"`
 	IPSet    *IPSet    `yaml:"ipset,omitempty"`
@@ -45,7 +49,7 @@ type Config struct {
 	Whitelist []net.IPNet       `yaml:"whitelist"`
 }
 
-var configName = flag.String("config", "silencer.yaml", "path to configuration file")
+var configName = flag.String("config", "/etc/silencer.yaml", "path to configuration file")
 
 func expand(s string, mapEnv map[string]string) string {
 	env := os.Environ()
@@ -64,6 +68,9 @@ func Load() Config {
 	var err error
 
 	data, err = ioutil.ReadFile(*configName)
+	if errors.Is(err, fs.ErrNotExist) {
+		data, err = ioutil.ReadFile(filepath.Base(*configName))
+	}
 	if err != nil {
 		log.Fatal(err)
 	}
