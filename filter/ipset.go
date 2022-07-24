@@ -14,7 +14,7 @@ type ipset struct {
 func NewIPset(set string) *ipset {
 	cmd := exec.Command("ipset", "create", set, "hash:ip")
 	output, err := cmd.CombinedOutput()
-	if err != nil {
+	if err != nil && !strings.Contains(string(output), "set with the same name already exists") {
 		log.Printf("command %q failed with %q", cmd, string(output))
 	}
 	return &ipset{set}
