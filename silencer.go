@@ -21,27 +21,55 @@ var log = &logger.Log
 type blockRequest struct {
 	ip       net.IP
 	duration time.Duration
+	line     string
+}
+
+func subnetListContains(subnets []net.IPNet, ip net.IP) bool {
+	for _, subnet := range subnets {
+		if subnet.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }
 
 func worker(blocker filter.Blocker, whitelist []net.IPNet) chan<- blockRequest {
-	c := make(chan blockRequest, 16)
+	block := make(chan blockRequest, 16)
 	go func() {
 		timer := time.NewTimer(0)
 		active := set.NewSet()
 		for {
-		next:
+			// before entering select, reset timer to the closest known deadline
+			if !timer.Stop() {
+				for len(timer.C) > 0 {
+					<-timer.C
+				}
+			}
+			if deadline := active.Deadline(); !deadline.IsZero() {
+				duration := deadline.Sub(time.Now())
+				log.Debug("reset deadline", zap.Time("deadline", deadline), zap.Duration("duration", duration))
+				timer.Reset(duration)
+			}
+
 			select {
-			case b := <-c:
-				for _, subnet := range whitelist {
-					if subnet.Contains(b.ip) {
-						goto next
-					}
+			case req := <-block:
+				if subnetListContains(whitelist, req.ip) {
+					log.Info("whitelisted", zap.Any("ip", req.ip),
+						zap.Duration("duration", req.duration),
+						zap.String("line", req.line))
+					break
 				}
 
-				unseen := active.Insert(b.ip, b.duration)
+				unseen := active.Insert(req.ip, req.duration)
 				if unseen {
-					log.Info("block", zap.Any("ip", b.ip), zap.Duration("duration", b.duration))
-					blocker.Block(b.ip)
+					log.Info("block", zap.Any("ip", req.ip),
+						zap.Duration("duration", req.duration),
+						zap.String("line", req.line))
+					blocker.Block(req.ip)
+				} else {
+					log.Debug("seen", zap.Any("ip", req.ip),
+						zap.Duration("duration", req.duration),
+						zap.String("line", req.line))
 				}
 			case <-timer.C:
 				for _, ip := range active.Expire() {
@@ -49,19 +77,9 @@ func worker(blocker filter.Blocker, whitelist []net.IPNet) chan<- blockRequest {
 					blocker.Unblock(ip)
 				}
 			}
-
-			if !timer.Stop() {
-				select {
-				case <-timer.C:
-				default:
-				}
-			}
-			if deadline := active.Deadline(); !deadline.IsZero() {
-				timer.Reset(deadline.Sub(time.Now()))
-			}
 		}
 	}()
-	return c
+	return block
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -152,7 +170,7 @@ func run(filename string, rules []rule, block chan<- blockRequest) {
 		for _, rule := range rules {
 			ip, err := rule.match(line.Text)
 			if ip != nil {
-				block <- blockRequest{ip, rule.duration}
+				block <- blockRequest{ip: ip, duration: rule.duration, line: line.Text}
 			}
 			if err != nil {
 				log.Warn("match failed", zap.String("line", line.Text), zap.Error(err))
@@ -201,7 +219,10 @@ func main() {
 	block := worker(blocker, cfg.Whitelist)
 
 	for _, ip := range blocker.List() {
-		block <- blockRequest{ip: ip, duration: cfg.Duration / 2}
+		block <- blockRequest{
+			ip:       ip,
+			duration: cfg.Duration / 2,
+		}
 	}
 
 	for _, logFile := range cfg.LogFile {
