@@ -21,19 +21,11 @@ func NewIPset(set string) *ipset {
 }
 
 func (b ipset) Block(ip net.IP) {
-	cmd := exec.Command("ipset", "add", b.set, ip.String())
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Printf("command %q failed with %q", cmd, string(output))
-	}
+	command("ipset", "add", b.set, ip.String())
 }
 
 func (b ipset) Unblock(ip net.IP) {
-	cmd := exec.Command("ipset", "del", b.set, ip.String())
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Printf("command %q failed with %q", cmd, string(output))
-	}
+	command("ipset", "del", b.set, ip.String())
 }
 
 func parseIpsetList(buf []byte) (list []net.IP) {
@@ -56,10 +48,8 @@ func parseIpsetList(buf []byte) (list []net.IP) {
 }
 
 func (b ipset) List() []net.IP {
-	cmd := exec.Command("ipset", "list", b.set, "-output", "save")
-	output, err := cmd.CombinedOutput()
+	output, err := command("ipset", "list", b.set, "-output", "save")
 	if err != nil {
-		log.Printf("command %q failed with %q", cmd, string(output))
 		return nil
 	}
 

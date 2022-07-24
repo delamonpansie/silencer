@@ -3,7 +3,6 @@ package filter
 import (
 	"log"
 	"net"
-	"os/exec"
 	"strings"
 )
 
@@ -16,19 +15,11 @@ func NewIPtables(chain string) *iptables {
 }
 
 func (b iptables) Block(ip net.IP) {
-	cmd := exec.Command("iptables", "-I", b.chain, "--src", ip.String(), "-j", "DROP")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Printf("command %q failed with %q", cmd, string(output))
-	}
+	command("iptables", "-I", b.chain, "--src", ip.String(), "-j", "DROP")
 }
 
 func (b iptables) Unblock(ip net.IP) {
-	cmd := exec.Command("iptables", "-D", b.chain, "--src", ip.String(), "-j", "DROP")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Printf("command %q failed with %q", cmd, string(output))
-	}
+	command("iptables", "-D", b.chain, "--src", ip.String(), "-j", "DROP")
 }
 
 func parseIptablesList(buf []byte) (list []net.IP) {
@@ -51,12 +42,9 @@ func parseIptablesList(buf []byte) (list []net.IP) {
 }
 
 func (b iptables) List() []net.IP {
-	cmd := exec.Command("iptables", "-nL", b.chain)
-	output, err := cmd.CombinedOutput()
+	output, err := command("iptables", "-nL", b.chain)
 	if err != nil {
-		log.Printf("command %q failed with %q", cmd, string(output))
 		return nil
 	}
-
 	return parseIptablesList(output)
 }
