@@ -21,6 +21,7 @@ var log = &logger.Log
 type blockRequest struct {
 	ip       net.IP
 	duration time.Duration
+	dummy    bool
 	line     string
 }
 
@@ -53,6 +54,11 @@ func worker(blocker filter.Blocker, whitelist []net.IPNet) chan<- blockRequest {
 
 			select {
 			case req := <-block:
+				if req.dummy {
+					active.Insert(req.ip, req.duration)
+					break
+				}
+
 				if subnetListContains(whitelist, req.ip) {
 					log.Info("whitelisted", zap.Any("ip", req.ip),
 						zap.Duration("duration", req.duration),
@@ -222,6 +228,7 @@ func main() {
 		block <- blockRequest{
 			ip:       ip,
 			duration: cfg.Duration / 2,
+			dummy:    true, // do not run blocker.Block(), it is already blocked
 		}
 	}
 
