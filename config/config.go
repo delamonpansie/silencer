@@ -5,7 +5,6 @@ import (
 	"flag"
 	"io/fs"
 	"io/ioutil"
-	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -13,8 +12,12 @@ import (
 
 	"github.com/buildkite/interpolate"
 	"github.com/creasty/defaults"
+	"github.com/delamonpansie/silencer/logger"
 	"github.com/go-yaml/yaml"
+	"go.uber.org/zap"
 )
+
+var log = &logger.Log
 
 type Rule struct {
 	Name     string        `yaml:"name"`
@@ -58,7 +61,7 @@ func expand(s string, mapEnv map[string]string) string {
 	}
 	s, err := interpolate.Interpolate(interpolate.NewSliceEnv(env), s)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("expand", zap.Error(err))
 	}
 	return s
 }
@@ -72,7 +75,7 @@ func Load() Config {
 		data, err = ioutil.ReadFile(filepath.Base(*configName))
 	}
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Load", zap.Error(err))
 	}
 
 	config := Config{}

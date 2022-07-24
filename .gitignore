@@ -1,4 +1,4 @@
 .gitignore
 silencer
-filter/types_mock.go
+*_mock.go
 vendor

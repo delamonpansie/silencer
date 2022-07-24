@@ -2,10 +2,14 @@ package filter
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"os/exec"
+
+	"github.com/delamonpansie/silencer/logger"
+	"go.uber.org/zap"
 )
+
+var log = &logger.Log
 
 //go:generate mockgen -destination filter_mock.go -package filter -source filter.go Blocker
 type Blocker interface {
@@ -27,7 +31,7 @@ func command(command string, args ...string) ([]byte, error) {
 	cmd := exec.Command(command, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Printf("command %q failed with %q", cmd, string(output))
+		log.Warn("command failed", zap.Stringer("command", cmd), zap.String("output", string(output)))
 	}
 	return output, err
 }

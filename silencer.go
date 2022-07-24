@@ -3,17 +3,20 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"net"
 	"regexp"
 	"time"
 
 	"github.com/hpcloud/tail"
+	"go.uber.org/zap"
 
 	"github.com/delamonpansie/silencer/config"
 	"github.com/delamonpansie/silencer/filter"
+	"github.com/delamonpansie/silencer/logger"
 	"github.com/delamonpansie/silencer/set"
 )
+
+var log = &logger.Log
 
 type blockRequest struct {
 	ip       net.IP
@@ -37,12 +40,12 @@ func worker(blocker filter.Blocker, whitelist []net.IPNet) chan<- blockRequest {
 
 				unseen := active.Insert(b.ip, b.duration)
 				if unseen {
-					log.Printf("blocking %s for %v", b.ip, b.duration)
+					log.Info("block", zap.Any("ip", b.ip), zap.Duration("duration", b.duration))
 					blocker.Block(b.ip)
 				}
 			case <-timer.C:
 				for _, ip := range active.Expire() {
-					log.Printf("unblock %s", ip)
+					log.Info("unblock", zap.Any("ip", ip))
 					blocker.Unblock(ip)
 				}
 			}
@@ -81,7 +84,7 @@ var debugRule = flag.String("debug-rule", "", "enable rule matching logs")
 
 func (rule *rule) match(line string) (ip net.IP, err error) {
 	if *debugRule != "" {
-		fmt.Printf("mathing rule %q\n", rule.name)
+		fmt.Printf("matching rule %q\n", rule.name)
 		defer func() {
 			switch {
 			case ip != nil:
@@ -127,21 +130,24 @@ func tailLog(filename string) <-chan *tail.Line {
 	config := tail.Config{
 		Follow: true,
 		ReOpen: true,
+		Logger: &logger.StdLogger{log.Sugar()},
 	}
 	t, err := tail.TailFile(filename, config)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("TailFile failed", zap.Error(err))
 	}
 
 	return t.Lines
 }
 
 func run(filename string, rules []rule, block chan<- blockRequest) {
+	log := log.With(zap.String("filename", filename))
 	for line := range tailLog(filename) {
 		if line.Err != nil {
-			log.Println(line.Err)
+			log.Warn("tail failed", zap.Error(line.Err))
 			continue
 		}
+		log.Debug("tail", zap.String("line", line.Text))
 
 		for _, rule := range rules {
 			ip, err := rule.match(line.Text)
@@ -149,16 +155,16 @@ func run(filename string, rules []rule, block chan<- blockRequest) {
 				block <- blockRequest{ip, rule.duration}
 			}
 			if err != nil {
-				log.Println(err.Error())
+				log.Warn("match failed", zap.String("line", line.Text), zap.Error(err))
 			}
 		}
 	}
 }
 
 /////////////////////////////////////////////////////////////////////////////////
-
 func main() {
 	flag.Parse()
+	logger.Init(*debugRule == "")
 	cfg := config.Load()
 
 	if *debugRule != "" {

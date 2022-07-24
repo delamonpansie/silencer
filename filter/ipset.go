@@ -1,10 +1,11 @@
 package filter
 
 import (
-	"log"
 	"net"
 	"os/exec"
 	"strings"
+
+	"go.uber.org/zap"
 )
 
 type ipset struct {
@@ -15,7 +16,7 @@ func NewIPset(set string) *ipset {
 	cmd := exec.Command("ipset", "create", set, "hash:ip")
 	output, err := cmd.CombinedOutput()
 	if err != nil && !strings.Contains(string(output), "set with the same name already exists") {
-		log.Printf("command %q failed with %q", cmd, string(output))
+		log.Warn("command failed", zap.Stringer("command", cmd), zap.String("output", string(output)))
 	}
 	return &ipset{set}
 }
@@ -39,7 +40,7 @@ func parseIpsetList(buf []byte) (list []net.IP) {
 		}
 		ip := net.ParseIP(fields[2]).To4()
 		if ip == nil {
-			log.Printf("invalid IPv4 address: %q", fields[2])
+			log.Warn("invalid IPv4 address", zap.Any("ip", fields[2]))
 			continue
 		}
 		list = append(list, ip)

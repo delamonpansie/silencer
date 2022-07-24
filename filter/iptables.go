@@ -1,9 +1,10 @@
 package filter
 
 import (
-	"log"
 	"net"
 	"strings"
+
+	"go.uber.org/zap"
 )
 
 type iptables struct {
@@ -33,7 +34,7 @@ func parseIptablesList(buf []byte) (list []net.IP) {
 		}
 		ip := net.ParseIP(fields[3]).To4()
 		if ip == nil {
-			log.Printf("invalid IPv4 address: %q", fields[3])
+			log.Warn("invalid IPv4 address", zap.String("ip", fields[3]))
 			continue
 		}
 		list = append(list, ip)
