@@ -4,7 +4,6 @@ import (
 	"errors"
 	"flag"
 	"io/fs"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -71,9 +70,9 @@ func Load() Config {
 	var data []byte
 	var err error
 
-	data, err = ioutil.ReadFile(*configName)
+	data, err = os.ReadFile(*configName)
 	if errors.Is(err, fs.ErrNotExist) {
-		data, err = ioutil.ReadFile(filepath.Base(*configName))
+		data, err = os.ReadFile(filepath.Base(*configName))
 	}
 	if err != nil {
 		log.Fatal("Load", zap.Error(err))
