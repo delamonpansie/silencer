@@ -6,9 +6,11 @@ import (
 	"time"
 
 	"github.com/buildkite/interpolate"
-	"github.com/golang/mock/gomock"
+	"github.com/hpcloud/tail"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
+	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
 
 	"github.com/delamonpansie/silencer/config"
@@ -22,71 +24,6 @@ func testLogger(t *testing.T) {
 		log = old
 	})
 }
-
-func Test_banWorker_bans_in_time(t *testing.T) {
-	testLogger(t)
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	ip1 := net.ParseIP("1.1.1.1").To4()
-	ip2 := net.ParseIP("2.2.2.2").To4()
-	ip3 := net.ParseIP("3.3.3.3").To4()
-
-	blocker := filter.NewMockBlocker(ctrl)
-
-	blocker.EXPECT().Block(ip1)
-	blocker.EXPECT().Block(ip2)
-	blocker.EXPECT().Block(ip3)
-
-	var start time.Time
-	blocker.EXPECT().Unblock(ip1).Do(func(_ interface{}) {
-		delay := time.Now().Sub(start)
-		assert.Less(t, 10*time.Millisecond, delay)
-		assert.Less(t, delay, 15*time.Millisecond)
-	})
-	blocker.EXPECT().Unblock(ip3).Do(func(_ interface{}) {
-		delay := time.Now().Sub(start)
-		assert.Less(t, 10*time.Millisecond, delay)
-		assert.Less(t, delay, 15*time.Millisecond)
-	})
-	blocker.EXPECT().Unblock(ip2).Do(func(_ interface{}) {
-		delay := time.Now().Sub(start)
-		assert.Less(t, 30*time.Millisecond, delay)
-		assert.Less(t, delay, 35*time.Millisecond)
-	})
-
-	start = time.Now()
-	c := worker(blocker, nil)
-	c <- blockRequest{ip: ip1, duration: 10 * time.Millisecond}
-	c <- blockRequest{ip: ip1, duration: 10 * time.Millisecond}
-	c <- blockRequest{ip: ip2, duration: 30 * time.Millisecond}
-	c <- blockRequest{ip: ip3, duration: 10 * time.Millisecond}
-
-	time.Sleep(50 * time.Millisecond)
-}
-
-func Test_banWorker_whitelist_honored(t *testing.T) {
-	testLogger(t)
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	ip1 := net.ParseIP("1.1.1.1").To4()
-	ip2, subnet, err := net.ParseCIDR("192.168.0.1/24")
-	require.NoError(t, err)
-	ip2 = ip2.To4()
-
-	blocker := filter.NewMockBlocker(ctrl)
-
-	blocker.EXPECT().Block(ip1)
-	blocker.EXPECT().Unblock(ip1)
-
-	c := worker(blocker, []net.IPNet{*subnet})
-	c <- blockRequest{ip: ip1, duration: time.Millisecond}
-	c <- blockRequest{ip: ip2, duration: time.Millisecond}
-
-	time.Sleep(2 * time.Millisecond)
-}
-
 func testRule(t *testing.T, re ...string) rule {
 	cfg := config.Load()
 	env := interpolate.NewMapEnv(cfg.Env)
@@ -97,6 +34,31 @@ func testRule(t *testing.T, re ...string) rule {
 		re[i] = s
 	}
 	return newRule("testRule", re, time.Second)
+}
+
+func Test_run_honors_whitelist(t *testing.T) {
+	testLogger(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ip1 := net.ParseIP("192.168.1.1").To4()
+	ip2, subnet, err := net.ParseCIDR("192.168.0.1/24")
+	require.NoError(t, err)
+	ip2 = ip2.To4()
+
+	blocker := filter.NewMockBlocker(ctrl)
+	blocker.EXPECT().Block(ip1, time.Second)
+
+	whitelist := []net.IPNet{*subnet}
+	lines := make(chan *tail.Line)
+	go func() {
+		lines <- &tail.Line{Text: ip2.String()}
+		lines <- &tail.Line{Text: "192.168.0.120"}
+		lines <- &tail.Line{Text: ip1.String()}
+		close(lines)
+	}()
+	rules := []rule{testRule(t, "(.*)")}
+	run(zap.NewNop(), blocker, lines, rules, whitelist)
 }
 
 func Test_rule1(t *testing.T) {
@@ -136,11 +98,4 @@ func Test_rule3(t *testing.T) {
 	m, err := rule.match("aaa bbb 1.1.1.1")
 	require.NoError(t, err)
 	assert.Nil(t, m)
-}
-
-func Test_time(t *testing.T) {
-	timer := time.NewTimer(0)
-	result := timer.Stop()
-	assert.True(t, result)
-	timer.Reset(time.Second)
 }

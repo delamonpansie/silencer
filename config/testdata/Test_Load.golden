@@ -31,8 +31,9 @@ env:
   date_time1: \d{4}-(?:0\d|10|11|12)-(?:[012]\d|3[01]) \d{2}:\d{2}:\d{2}.\d+
   ip: (?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)
 filter:
-  iptables:
-    chain: silencer
+  nft:
+    table: ip
+    set: silencer
 whitelist:
 - ip: 192.168.0.0
   mask:

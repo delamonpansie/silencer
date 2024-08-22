@@ -31,8 +31,9 @@ type LogFile struct {
 	Duration time.Duration `yaml:"duration"`
 }
 
-type IPTables struct {
-	Chain string `yaml:"chain"`
+type NFT struct {
+	Table string `yaml:"table"`
+	Set   string `yaml:"set"`
 }
 
 type IPSet struct {
@@ -40,8 +41,8 @@ type IPSet struct {
 }
 
 type Filter struct {
-	IPTables *IPTables `yaml:"iptables,omitempty"`
-	IPSet    *IPSet    `yaml:"ipset,omitempty"`
+	NFT   *NFT   `yaml:"nft,omitempty"`
+	IPSet *IPSet `yaml:"ipset,omitempty"`
 }
 
 type Config struct {
@@ -100,9 +101,17 @@ func Load() Config {
 		}
 	}
 
-	if (config.Filter.IPSet != nil && config.Filter.IPTables != nil) ||
-		(config.Filter.IPSet == nil && config.Filter.IPTables == nil) {
-		log.Fatal("exactly one filter must be configured")
+	switch {
+	case config.Filter.IPSet == nil && config.Filter.NFT == nil:
+		log.Fatal("at least one filter must be configured")
+	case config.Filter.IPSet != nil && config.Filter.NFT != nil:
+		log.Fatal("at most one filter must be configured")
+	case config.Filter.IPSet != nil && config.Filter.IPSet.Set == "":
+		log.Fatal("ipset set name cannot be empty")
+	case config.Filter.NFT != nil && config.Filter.NFT.Table == "":
+		log.Fatal("nft table name cannot be empty")
+	case config.Filter.NFT != nil && config.Filter.NFT.Set == "":
+		log.Fatal("nft set name cannot be empty")
 	}
 
 	for i := range config.LogFile {

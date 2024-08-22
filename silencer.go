@@ -13,80 +13,9 @@ import (
 	"github.com/delamonpansie/silencer/config"
 	"github.com/delamonpansie/silencer/filter"
 	"github.com/delamonpansie/silencer/logger"
-	"github.com/delamonpansie/silencer/set"
 )
 
 var log = &logger.Log
-
-type blockRequest struct {
-	ip       net.IP
-	duration time.Duration
-	dummy    bool
-	line     string
-}
-
-func subnetListContains(subnets []net.IPNet, ip net.IP) bool {
-	for _, subnet := range subnets {
-		if subnet.Contains(ip) {
-			return true
-		}
-	}
-	return false
-}
-
-func worker(blocker filter.Blocker, whitelist []net.IPNet) chan<- blockRequest {
-	block := make(chan blockRequest, 16)
-	go func() {
-		timer := time.NewTimer(0)
-		active := set.NewSet()
-		for {
-			// before entering select, reset timer to the closest known deadline
-			if !timer.Stop() {
-				for len(timer.C) > 0 {
-					<-timer.C
-				}
-			}
-			if deadline := active.Deadline(); !deadline.IsZero() {
-				duration := deadline.Sub(time.Now())
-				log.Debug("reset deadline", zap.Time("deadline", deadline), zap.Duration("duration", duration))
-				timer.Reset(duration)
-			}
-
-			select {
-			case req := <-block:
-				if req.dummy {
-					active.Insert(req.ip, req.duration)
-					break
-				}
-
-				if subnetListContains(whitelist, req.ip) {
-					log.Info("whitelisted", zap.Any("ip", req.ip),
-						zap.Duration("duration", req.duration),
-						zap.String("line", req.line))
-					break
-				}
-
-				unseen := active.Insert(req.ip, req.duration)
-				if unseen {
-					log.Info("block", zap.Any("ip", req.ip),
-						zap.Duration("duration", req.duration),
-						zap.String("line", req.line))
-					blocker.Block(req.ip)
-				} else {
-					log.Debug("seen", zap.Any("ip", req.ip),
-						zap.Duration("duration", req.duration),
-						zap.String("line", req.line))
-				}
-			case <-timer.C:
-				for _, ip := range active.Expire() {
-					log.Info("unblock", zap.Any("ip", ip))
-					blocker.Unblock(ip)
-				}
-			}
-		}
-	}()
-	return block
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -154,7 +83,7 @@ func tailLog(filename string) <-chan *tail.Line {
 	config := tail.Config{
 		Follow: true,
 		ReOpen: true,
-		Logger: &logger.StdLogger{log.Sugar()},
+		Logger: &logger.StdLogger{SugaredLogger: log.Sugar()},
 	}
 	t, err := tail.TailFile(filename, config)
 	if err != nil {
@@ -164,31 +93,61 @@ func tailLog(filename string) <-chan *tail.Line {
 	return t.Lines
 }
 
-func run(filename string, rules []rule, block chan<- blockRequest) {
-	log := log.With(zap.String("filename", filename))
-	for line := range tailLog(filename) {
+func subnetListContains(subnets []net.IPNet, ip net.IP) bool {
+	for _, subnet := range subnets {
+		if subnet.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+func match(line *tail.Line, rules []rule, whitelist []net.IPNet) (net.IP, time.Duration) {
+	for _, rule := range rules {
+		ip, err := rule.match(line.Text)
+		if err != nil {
+			log.Warn("match failed", zap.String("line", line.Text), zap.Error(err))
+			continue
+		}
+
+		if ip == nil {
+			continue
+		}
+
+		if subnetListContains(whitelist, ip) {
+			log.Info("whitelisted", zap.Any("ip", ip))
+			return nil, 0
+		}
+
+		return ip, rule.duration
+	}
+	return nil, 0
+}
+
+func run(log *zap.Logger, blocker filter.Blocker, lines <-chan *tail.Line, rules []rule, whitelist []net.IPNet) {
+	for line := range lines {
 		if line.Err != nil {
 			log.Warn("tail failed", zap.Error(line.Err))
 			continue
 		}
 		log.Debug("tail", zap.String("line", line.Text))
 
-		for _, rule := range rules {
-			ip, err := rule.match(line.Text)
-			if ip != nil {
-				block <- blockRequest{ip: ip, duration: rule.duration, line: line.Text}
-			}
-			if err != nil {
-				log.Warn("match failed", zap.String("line", line.Text), zap.Error(err))
-			}
+		if ip, duration := match(line, rules, whitelist); ip != nil {
+			log.Info("block",
+				zap.Any("ip", ip),
+				zap.Duration("duration", duration))
+			blocker.Block(ip, duration)
 		}
 	}
 }
 
-/////////////////////////////////////////////////////////////////////////////////
+// ///////////////////////////////////////////////////////////////////////////////
 func main() {
 	flag.Parse()
-	logger.Init(*debugRule == "")
+	if *debugRule != "" {
+		*logger.LogFile = ""
+	}
+	logger.Init()
 	cfg := config.Load()
 
 	if *debugRule != "" {
@@ -215,21 +174,12 @@ func main() {
 	switch {
 	case *debugRule != "":
 		blocker = filter.NewDummy()
-	case cfg.Filter.IPTables != nil:
-		blocker = filter.NewIPtables(cfg.Filter.IPTables.Chain)
 	case cfg.Filter.IPSet != nil:
 		blocker = filter.NewIPset(cfg.Filter.IPSet.Set)
+	case cfg.Filter.NFT != nil:
+		blocker = filter.NewNFT(cfg.Filter.NFT.Table, cfg.Filter.NFT.Set)
 	default:
 		panic("not reached")
-	}
-	block := worker(blocker, cfg.Whitelist)
-
-	for _, ip := range blocker.List() {
-		block <- blockRequest{
-			ip:       ip,
-			duration: cfg.Duration / 2,
-			dummy:    true, // do not run blocker.Block(), it is already blocked
-		}
 	}
 
 	for _, logFile := range cfg.LogFile {
@@ -238,7 +188,13 @@ func main() {
 			rules[i] = newRule(ruleConfig.Name, ruleConfig.Re, ruleConfig.Duration)
 		}
 
-		go run(logFile.FileName, rules, block)
+		go run(
+			log.With(zap.String("filename", logFile.FileName)),
+			blocker,
+			tailLog(logFile.FileName),
+			rules,
+			cfg.Whitelist,
+		)
 	}
 
 	select {}

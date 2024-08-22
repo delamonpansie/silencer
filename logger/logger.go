@@ -35,9 +35,7 @@ func (sl *StdLogger) Println(v ...interface{}) {
 	sl.Info(v...)
 }
 
-func reopenStdio() error {
-	const logFile = "/var/log/silencer.log"
-
+func reopenStdio(logFile string) error {
 	var err error
 	if err := os.Stdin.Close(); err != nil {
 		return err
@@ -72,9 +70,12 @@ func reopenStdio() error {
 	return nil
 }
 
-var verbose = flag.Bool("verbose", false, "produce debug output")
+var (
+	verbose = flag.Bool("verbose", false, "produce verbose output")
+	LogFile = flag.String("log", "", "log destination (default stderr)")
+)
 
-func Init(reopen bool) {
+func Init() {
 	var err error
 
 	stderr := os.Stderr
@@ -90,8 +91,8 @@ func Init(reopen bool) {
 	stderr = os.NewFile(uintptr(fd), "stderr")
 	defer stderr.Close()
 
-	if reopen {
-		if err := reopenStdio(); err != nil {
+	if *LogFile != "" && *LogFile != "-" {
+		if err := reopenStdio(*LogFile); err != nil {
 			logFatal(err)
 		}
 	}
