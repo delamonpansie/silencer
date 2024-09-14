@@ -100,14 +100,13 @@ log_file:
     rule:
     # block whoever tries using AUTH LOGIN on smtp port. We do not use authentication, so
     # who ever tries auth is picking passowrds
-        - name: auth
+    - name: auth
       re:
-          # example line `2024-09-10 02:20:07.641 [20764] SMTP protocol error in "AUTH LOGIN" H=(User) [xx.xx.xx.xx]:xx I=[xx.xx.xx.xx]:25 AUTH command used when not advertised`
+          # example line: `2024-09-10 02:20:07.641 [20764] SMTP protocol error in "AUTH LOGIN" H=(User) [xx.xx.xx.xx]:xx I=[xx.xx.xx.xx]:25 AUTH command used when not advertised`
 
-          # Rule matching works by using a sequence of regexes to match and trim
-          # line until only IP remains. If the regex fails to match, then the rule
-          # is considered failed, and no more matching is performed. If regex
-          # contains capture group, then log line will be replaced with the value
+          # Rule matching works by using a sequence of regexes to match and trim line until only IP remains.
+          # If the regex fails to match, then the rule is considered failed, and no more matching
+          # is performed. If regex contains capture group, then log line will be replaced with the value
           # of capture group.
 
           # match begging of the line with /^$date_time \[\d+\] SMTP protocol error in "AUTH LOGIN"/ and select tail for latter processing.
@@ -130,10 +129,13 @@ log_file:
       # block whoever tries to guess valid usernames
       - name: sshd
         re:
-          # we're matching generic auth.log here, so we need to pick lines coming from sshd first
+          # we're matching generic auth.log here, so we need to pick lines coming from sshd first.
+          # note, that we also dropping matched prefix, because we use capture group to match tail of the line. Contents of this capture group will be used as next line buffer.
           - ^$date_time_iso \S+ sshd\[\d+\][:]\s(.*)
+
           # match the offender ip. Since this is the only ip address in the log line, the rule is very simple
           - ^Disconnected from invalid user \S+ ($ip) port \d+ \[preauth\]
+
       # block whoever guessed right username but failed to provide correct pasword. It's safe since we have
       # ssh key authentication as our primary access method. Might be risky otherwise.
       - name: sshd-pam
@@ -145,6 +147,7 @@ log_file:
       # we do not provide recursive DNS service, so who tries to do recursion should be blocked
       - name: named
         re:
+          # pick lines from named first
           - ^$date_time_iso \S+ named\[\d+\][:]\s(.*)
           - (.*) \(\S+\)[:] view public[:] query \(cache\) '\S+/[A-Z]+/IN' denied$$
           - client @0x[\da-f]+ ($ip)#\d+
