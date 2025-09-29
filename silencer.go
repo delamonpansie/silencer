@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/go-yaml/yaml"
 	"github.com/hpcloud/tail"
 	"go.uber.org/zap"
 
@@ -33,7 +34,7 @@ func newRule(name string, src []string, duration time.Duration) rule {
 	return rule{name, re, duration}
 }
 
-var debugRule = flag.String("debug-rule", "", "enable rule matching logs")
+var debugRule = flag.String("debug-rule", "", "enable rule matching logs for given rule-name")
 
 func (rule *rule) match(line string) (ip net.IP, err error) {
 	if *debugRule != "" {
@@ -168,6 +169,12 @@ func main() {
 			log.Fatal("no matching rules found")
 		}
 		cfg.LogFile = matchedLogFile
+
+		data, err := yaml.Marshal(&cfg)
+		if err != nil {
+			log.Fatal("marshal config", zap.Error(err))
+		}
+		fmt.Printf("configuration:\n%s", string(data))
 	}
 
 	var blocker filter.Blocker

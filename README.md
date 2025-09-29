@@ -46,6 +46,12 @@ There are three ways to configure a block duration in config:
 3. rule level `duration` defines duration for a matches of a given
    rule. It has highest priority.
 
+## Debugging rules
+
+Sometimes it is helpful to check if specific rules correctly parses
+log lines.  There is a debug mode for that: to check rule `auth` in
+`silencer.yaml` run the following command `./silencer -config
+silencer.yaml -debug-rule auth`.
 
 ## Building & testing
 
@@ -57,6 +63,7 @@ go generate ./...
 go test ./...
 go build .
 ```
+
 
 ## Example configuration
 
