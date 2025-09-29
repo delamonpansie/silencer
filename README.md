@@ -32,6 +32,20 @@ of capture group.
 `env` section defines commons strings. All regexes are expanded using
 these strings.
 
+### Duration
+
+A duration value uses [Go syntax](https://pkg.go.dev/time#ParseDuration).
+
+There are three ways to configure a block duration in config:
+1. top level `duration` defines the default duration. It will be used
+   if there is no file or rule level config.
+
+2. file level `duration` defines duration for a matches coming from a
+   given file.  It has priority over the default duration.
+
+3. rule level `duration` defines duration for a matches of a given
+   rule. It has highest priority.
+
 
 ## Building & testing
 
@@ -81,6 +95,9 @@ filter:
     set: silence
     table: inet
 
+# default duration
+duration: 168h
+
 # never block hosts from these networks
 whitelist:
   - ip: 192.168.0.0
@@ -125,9 +142,11 @@ log_file:
           - \[($ip)\]
 
   - file_name: /var/log/auth.log
+    duration: 360h # use 360h block duration for matches in this file
     rule:
       # block whoever tries to guess valid usernames
       - name: sshd
+        duration: 720h # this specific rule will result in 720h block
         re:
           # we're matching generic auth.log here, so we need to pick lines coming from sshd first.
           # note, that we also dropping matched prefix, because we use capture group to match tail of the line. Contents of this capture group will be used as next line buffer.
