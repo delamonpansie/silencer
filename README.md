@@ -58,7 +58,7 @@ silencer.yaml -debug-rule auth`.
 ```
 git clone https://github.com/delamonpansie/silencer
 cd silencer
-go get github.com/golang/mock/mockgen
+go install go.uber.org/mock/mockgen@latest
 go generate ./...
 go test ./...
 go build .
