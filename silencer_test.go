@@ -47,7 +47,7 @@ func Test_run_honors_whitelist(t *testing.T) {
 	ip2 = ip2.To4()
 
 	blocker := filter.NewMockBlocker(ctrl)
-	blocker.EXPECT().Block(ip1, time.Second)
+	blocker.EXPECT().Block(ip1, time.Second, "testRule")
 
 	whitelist := []net.IPNet{*subnet}
 	lines := make(chan *tail.Line)

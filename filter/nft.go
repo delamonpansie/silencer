@@ -2,6 +2,7 @@ package filter
 
 import (
 	"net"
+	"strings"
 	"time"
 )
 
@@ -14,6 +15,12 @@ func NewNFT(table, set string) nft {
 	return nft{table, set}
 }
 
-func (b nft) Block(ip net.IP, duration time.Duration) {
-	command("nft", "add", "element", b.table, b.set, "{", ip.String(), "timeout", duration.String(), "}")
+func (b nft) Block(ip net.IP, duration time.Duration, name string) {
+	command("nft", "add", "element", b.table, b.set,
+		"{",
+		ip.String(),
+		"timeout", duration.String(),
+		"comment", strings.ReplaceAll(name, `"`, ``),
+		"}",
+	)
 }

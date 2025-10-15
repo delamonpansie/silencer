@@ -103,7 +103,7 @@ func subnetListContains(subnets []net.IPNet, ip net.IP) bool {
 	return false
 }
 
-func match(line *tail.Line, rules []rule, whitelist []net.IPNet) (net.IP, time.Duration) {
+func match(line *tail.Line, rules []rule, whitelist []net.IPNet) (net.IP, *rule) {
 	for _, rule := range rules {
 		ip, err := rule.match(line.Text)
 		if err != nil {
@@ -117,12 +117,12 @@ func match(line *tail.Line, rules []rule, whitelist []net.IPNet) (net.IP, time.D
 
 		if subnetListContains(whitelist, ip) {
 			log.Info("whitelisted", zap.Any("ip", ip))
-			return nil, 0
+			return nil, nil
 		}
 
-		return ip, rule.duration
+		return ip, &rule
 	}
-	return nil, 0
+	return nil, nil
 }
 
 func run(log *zap.Logger, blocker filter.Blocker, lines <-chan *tail.Line, rules []rule, whitelist []net.IPNet) {
@@ -133,11 +133,13 @@ func run(log *zap.Logger, blocker filter.Blocker, lines <-chan *tail.Line, rules
 		}
 		log.Debug("tail", zap.String("line", line.Text))
 
-		if ip, duration := match(line, rules, whitelist); ip != nil {
+		if ip, rule := match(line, rules, whitelist); ip != nil {
 			log.Info("block",
 				zap.Any("ip", ip),
-				zap.Duration("duration", duration))
-			blocker.Block(ip, duration)
+				zap.Duration("duration", rule.duration),
+				zap.String("rule_name", rule.name),
+			)
+			blocker.Block(ip, rule.duration, rule.name)
 		}
 	}
 }

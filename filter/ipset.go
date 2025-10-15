@@ -3,6 +3,7 @@ package filter
 import (
 	"net"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -15,7 +16,11 @@ func NewIPset(set string) ipset {
 	return ipset{set}
 }
 
-func (b ipset) Block(ip net.IP, duration time.Duration) {
+func (b ipset) Block(ip net.IP, duration time.Duration, name string) {
 	timeout := strconv.Itoa(int(duration.Seconds()))
-	command("ipset", "-exist", "add", b.set, ip.String(), "timeout", timeout)
+	command("ipset", "-exist", "add", b.set,
+		ip.String(),
+		"timeout", timeout,
+		"comment", strings.ReplaceAll(name, `"`, ``),
+	)
 }
