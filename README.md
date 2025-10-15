@@ -29,8 +29,9 @@ contains capture group, then log line will be replaced with the value
 of capture group.
 
 
-`env` section defines commons strings. All regexes are expanded using
-these strings.
+`env` section defines variables. These variables are interpolated inside
+rule regexes with well known syntax `${var}`. If you need literal `$`
+inside regex, use `$$`.
 
 ### Duration
 

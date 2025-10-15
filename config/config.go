@@ -80,20 +80,23 @@ func Load() Config {
 	}
 
 	config := Config{}
-	if err := yaml.Unmarshal(data, &config); err != nil {
+	defaults.Set(&config)
+	if err := yaml.UnmarshalStrict(data, &config); err != nil {
 		log.Fatal("Unmarshal",
 			zap.String("config_file_name", *configName),
 			zap.Error(err),
 		)
 	}
-	// replace ${var} or $var in the string according to env & config.Env
-	data = []byte(expand(string(data), config.Env))
 
-	config = Config{}
-	defaults.Set(&config)
-	if err := yaml.UnmarshalStrict(data, &config); err != nil {
-		panic(err)
+	for _, logFile := range config.LogFile {
+		for _, rule := range logFile.Rule {
+			for i := range rule.Re {
+				// replace ${var} or $var in the string according to env & config.Env
+				rule.Re[i] = expand(rule.Re[i], config.Env)
+			}
+		}
 	}
+
 	if config.Duration == 0 {
 		log.Fatal("default duration is 0")
 	}
