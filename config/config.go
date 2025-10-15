@@ -72,7 +72,8 @@ func Load() Config {
 
 	data, err = os.ReadFile(*configName)
 	if errors.Is(err, fs.ErrNotExist) {
-		data, err = os.ReadFile(filepath.Base(*configName))
+		*configName = filepath.Base(*configName)
+		data, err = os.ReadFile(*configName)
 	}
 	if err != nil {
 		log.Fatal("Load", zap.Error(err))
@@ -80,7 +81,10 @@ func Load() Config {
 
 	config := Config{}
 	if err := yaml.Unmarshal(data, &config); err != nil {
-		panic(err)
+		log.Fatal("Unmarshal",
+			zap.String("config_file_name", *configName),
+			zap.Error(err),
+		)
 	}
 	// replace ${var} or $var in the string according to env & config.Env
 	data = []byte(expand(string(data), config.Env))
